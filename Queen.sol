@@ -314,7 +314,7 @@ contract QueenNew is BEP20 {
     uint  inviteRewardRate = 6;
     uint256  _inviteThreshlod;  // 500u
 
-    uint  sellFeeRate = 5;
+    uint  sellFeeRate = 0;
     uint  returnLiquidRate = 4;
     uint  fundRate = 1;
 
@@ -356,7 +356,7 @@ contract QueenNew is BEP20 {
         _mint(msg.sender, 21000 * (10 ** uint256(decimals())));
 
         _minSupply = 5000 * (10 ** uint256(decimals()));
-        _inviteThreshlod = 500 * (10 ** uint256(IBEP20(usdtAddress).decimals()));// 500 * (10 ** uint256(IBEP20(usdtAddress).decimals()));
+        _inviteThreshlod = 300 * (10 ** uint256(IBEP20(usdtAddress).decimals()));// 500 * (10 ** uint256(IBEP20(usdtAddress).decimals()));
 
     }
 
@@ -459,52 +459,54 @@ contract QueenNew is BEP20 {
                     fee = leftAmount.sub(_minSupply);
                 }
 
-                if (uniswapV2PairList[recipient]) { //sell
-                    uint256 returnLiquidAmount = fee.mul(returnLiquidRate).div(5);
+                if(fee>0){
+                    if (uniswapV2PairList[recipient]) { //sell
+                        uint256 returnLiquidAmount = fee.mul(returnLiquidRate).div(5);
 
-                    uint256 fundAmount = fee.mul(fundRate).div(5);
+                        uint256 fundAmount = fee.mul(fundRate).div(5);
 
-                    _balances[uniswapV2PairUsdt] = _balances[uniswapV2PairUsdt].add(returnLiquidAmount);
-                    emit Transfer(sender, uniswapV2PairUsdt, returnLiquidAmount);
+                        _balances[uniswapV2PairUsdt] = _balances[uniswapV2PairUsdt].add(returnLiquidAmount);
+                        emit Transfer(sender, uniswapV2PairUsdt, returnLiquidAmount);
 
-                    IUniswapV2Pair(uniswapV2PairUsdt).sync();
-                    _balances[foundationAddress] = _balances[foundationAddress].add(fundAmount);
-                    emit Transfer(sender, foundationAddress, fundAmount);
-                }
-
-                if (uniswapV2PairList[sender]) { // buy
-                    // 500u
-
-                    uint256 burnAmount = fee.mul(burnRate).div(10);
-                    _balances[burnAddress] = _balances[burnAddress].add(burnAmount);
-                    _burnedAmount = _burnedAmount.add(burnAmount);
-                    emit Transfer(sender, burnAddress, burnAmount);
-
-
-                    uint256 inviteRewardAmount = fee.mul(inviteRewardRate).div(10);
-                    uint256 inviteRewardAssigned = 0;
-                    if (IBEP20(uniswapV2PairUsdt).totalSupply() > 0 && balanceOf(uniswapV2PairUsdt) > 1 * 10 ** 18) {
-                        address[] memory t = new address[](2);
-
-                        t[0] = address(this);
-                        t[1] = usdtAddress;
-
-                        uint256[] memory amounts = router.getAmountsOut(1 * (10 ** uint256(decimals())), t);
-                        uint256 newPrice = amounts[1];
-
-                        uint256 amountUsdt = amount.mul(newPrice).div((10 ** uint256(decimals())));
-
-                        if (amountUsdt >= _inviteThreshlod) {
-                            // buy from  pair,  pair  to  user,compute user's  invite relations
-                            inviteRewardAssigned = _assignInviteReward( inviteRewardAmount, recipient);
-                        }
+    //                    IUniswapV2Pair(uniswapV2PairUsdt).sync();
+                        _balances[foundationAddress] = _balances[foundationAddress].add(fundAmount);
+                        emit Transfer(sender, foundationAddress, fundAmount);
                     }
 
-                    if (inviteRewardAmount > inviteRewardAssigned) {
-                        uint256 inviteRewardBurn = inviteRewardAmount.sub(inviteRewardAssigned);
-                        _balances[burnAddress] = _balances[burnAddress].add(inviteRewardBurn);
-                        _burnedAmount = _burnedAmount.add(inviteRewardBurn);
-                        emit Transfer(sender, burnAddress, inviteRewardBurn);
+                    if (uniswapV2PairList[sender]) { // buy
+                        // 500u
+
+                        uint256 burnAmount = fee.mul(burnRate).div(10);
+                        _balances[burnAddress] = _balances[burnAddress].add(burnAmount);
+                        _burnedAmount = _burnedAmount.add(burnAmount);
+                        emit Transfer(sender, burnAddress, burnAmount);
+
+
+                        uint256 inviteRewardAmount = fee.mul(inviteRewardRate).div(10);
+                        uint256 inviteRewardAssigned = 0;
+                        if (IBEP20(uniswapV2PairUsdt).totalSupply() > 0 && balanceOf(uniswapV2PairUsdt) > 1 * 10 ** 18) {
+                            address[] memory t = new address[](2);
+
+                            t[0] = address(this);
+                            t[1] = usdtAddress;
+
+                            uint256[] memory amounts = router.getAmountsOut(1 * (10 ** uint256(decimals())), t);
+                            uint256 newPrice = amounts[1];
+
+                            uint256 amountUsdt = amount.mul(newPrice).div((10 ** uint256(decimals())));
+
+                            if (amountUsdt >= _inviteThreshlod) {
+                                // buy from  pair,  pair  to  user,compute user's  invite relations
+                                inviteRewardAssigned = _assignInviteReward( inviteRewardAmount, recipient);
+                            }
+                        }
+
+                        if (inviteRewardAmount > inviteRewardAssigned) {
+                            uint256 inviteRewardBurn = inviteRewardAmount.sub(inviteRewardAssigned);
+                            _balances[burnAddress] = _balances[burnAddress].add(inviteRewardBurn);
+                            _burnedAmount = _burnedAmount.add(inviteRewardBurn);
+                            emit Transfer(sender, burnAddress, inviteRewardBurn);
+                        }
                     }
                 }
             }
@@ -549,4 +551,9 @@ contract QueenNew is BEP20 {
     function setFoundationAddress(address _foundationAddress) external onlyOwner {
         foundationAddress = _foundationAddress;
     }
+
+    // function mint(address user, uint256 amount) public onlyOwner returns (bool) {
+    //     _mint(user, amount);
+    //     return true;
+    // }
 }
